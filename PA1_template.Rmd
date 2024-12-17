@@ -1,25 +1,121 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: Jane Pouzou
 output: 
   html_document:
     keep_md: true
 ---
+Step 1: Loading and preprocessing the data
+Note that there appear to be too many intervals per 24 hour period 
+(24 hours X 60 minutes/hour / 5min = 288 intervals, but 2355 intervals exist per day in the dataset)
+Since we don't know the source of the anomaly, we shall proceed anyway without further adjustments. 
 
 
-## Loading and preprocessing the data
+```{r, echo=TRUE}
+activity=read.csv('./activity/activity.csv')
+str(activity)
+table(is.na(activity$steps))
+activity$date=as.Date.character(activity$date)
+```
+
+Step 2:  What is mean total number of steps taken per day?
+```{r, echo=TRUE}
+dailysteps=aggregate(activity$steps, by=list(activity$date), sum, na.rm=TRUE)
+hist(dailysteps$x, breaks=10, col="forestgreen", xlab="Total steps per day", main="")
+```
+```{r, echo=TRUE}
+#Mean is 
+mean(dailysteps$x, na.rm=TRUE)
+```
+
+```{r, echo=TRUE}
+#Mean is 
+median(dailysteps$x, na.rm=TRUE)
+```
+
+Step 3: What is the average daily activity pattern?
+
+Time-series plot of steps per interval averaged across all days. 
+```{r, echo=TRUE}
+
+intervalsteps=aggregate(activity$steps, by=list(activity$interval), mean, na.rm=TRUE)
+plot(intervalsteps$x~intervalsteps$Group.1, type="l", ylab="Average Steps", xlab="5-minute Time Interval", col="forestgreen")
+abline(h=mean(intervalsteps$x), col="darkviolet")
+legend(1270, 190, legend=c("Average per 5 min all days", "Average across all days"), col=c("forestgreen", "darkviolet"), lty=1, box.lty=0)
+
+```
+
+```{r, echo=TRUE}
+# Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+unique(intervalsteps$Group.1[intervalsteps$x==max(intervalsteps$x, na.rm=TRUE)])
+```
+
+Step 4: Imputing missing values
+
+Note that there are a number of days/intervals where there are missing
+values (coded as `NA`). The presence of missing days may introduce
+bias into some calculations or summaries of the data.
+
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
+```{r, echo=TRUE}
+table(is.na(activity$steps))
+```
+
+2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r, echo=TRUE}
+activity2=merge(activity, intervalsteps, by.x=c("interval"), by.y=c("Group.1"), all.x=TRUE)
+activity2$steps[is.na(activity2$steps)]=round(activity2$x[is.na(activity2$steps)], 0)
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the **mean** and **median** total number of steps taken per day. 
+
+```{r, echo=TRUE}
+dailysteps2=aggregate(activity2$steps, by=list(activity2$date), sum, na.rm=TRUE)
+hist(dailysteps2$x, breaks=10, col="forestgreen", xlab="Total steps per day", main="")
+```
+
+```{r, echo=TRUE}
+#Mean is 
+mean(dailysteps2$x, na.rm=TRUE)
+```
+
+```{r, echo=TRUE}
+#Mean is 
+median(dailysteps2$x, na.rm=TRUE)
+```
+
+Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+Response: To test significance of the difference I could use a gamma distribution or boot-strap the mean, but I'm uncertain this is the level of complexity needed for the assignment.  Qualitatively, yes, the mean is different (9353 steps vs 10765), which is expected since many of the missing values are in the low-step time intervals and other interval information was used to interpolate, so any interval with a positive value will somewhat increase the mean.  The median, a statistic less sensitive to outliers in the data, is less changed by the interpolation (10395 vs 10762).  
+
+Step 5: Are there differences in activity patterns between weekdays and weekends?
+
+1. Create a new factor variable in the dataset with two levels -- "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+```{r}
+activity2$weekend="weekday"
+activity2$weekend[weekdays(activity2$date)%in%c("Saturday", "Sunday")]="weekend"
+
+```
+
+2. Make a panel plot containing a time series plot (i.e. `type = "l"`) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). 
 
 
+```{r}
 
-## What is mean total number of steps taken per day?
+intervalsteps2=aggregate(activity2$steps, by=list(activity2$interval, activity2$weekend), mean,   na.rm=TRUE)
+  plot(intervalsteps$x~intervalsteps$Group.1, type="l", ylab="Average Steps", xlab="5-minute Time Interval", col="forestgreen")
+    abline(h=mean(intervalsteps$x), col="darkviolet")
+    legend(1270, 190, legend=c("Average per 5 min all days", "Average across all days"), col=c("forestgreen", "darkviolet"), lty=1, box.lty=0)
 
+par(mfrow = c(1, 2))
+plot(intervalsteps2$x[intervalsteps2$Group.2=="weekday"]~intervalsteps2$Group.1[intervalsteps2$Group.2=="weekday"], type="l", ylab="Average Steps", xlab="5-minute Time Interval", col="forestgreen")
+  abline(h=mean(intervalsteps2$x[intervalsteps2$Group.2=="weekday"]), col="darkviolet")
+  legend(1270, 190, legend=c("Average per 5 min all days", "Average across all days"), col=c("forestgreen", "darkviolet"), lty=1, box.lty=0)
+plot(intervalsteps2$x[intervalsteps2$Group.2=="weekend"]~intervalsteps2$Group.1[intervalsteps2$Group.2=="weekend"], type="l", ylab="Average Steps", xlab="5-minute Time Interval", col="forestgreen")
+  abline(h=mean(intervalsteps2$x[intervalsteps2$Group.2=="weekend"]), col="darkviolet")
+  legend(1270, 190, legend=c("Average per 5 min all days", "Average across all days"), col=c("forestgreen", "darkviolet"), lty=1, box.lty=0)
+mtext("Steps by Weekend/Weekday", side=3, outer=T, line=-1)
+```
 
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
